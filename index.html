@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>imgCleaner — Remove Background</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #0f0f13;
+      color: #e8e8f0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px 20px;
+    }
+
+    h1 {
+      font-size: 2rem;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      margin-bottom: 6px;
+    }
+
+    h1 span { color: #7c6ff7; }
+
+    .subtitle {
+      color: #888;
+      font-size: 0.95rem;
+      margin-bottom: 36px;
+    }
+
+    #dropzone {
+      width: 100%;
+      max-width: 540px;
+      border: 2px dashed #3a3a50;
+      border-radius: 18px;
+      padding: 56px 32px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+      background: #16161e;
+      position: relative;
+    }
+
+    #dropzone:hover,
+    #dropzone.dragover {
+      border-color: #7c6ff7;
+      background: #1c1c2a;
+    }
+
+    #dropzone .icon {
+      font-size: 3rem;
+      margin-bottom: 14px;
+      line-height: 1;
+    }
+
+    #dropzone p { color: #aaa; font-size: 1rem; }
+    #dropzone p strong { color: #e8e8f0; }
+    #dropzone small { color: #666; font-size: 0.8rem; margin-top: 8px; display: block; }
+
+    #fileInput { display: none; }
+
+    #errorMsg {
+      color: #f87171;
+      background: #2a1a1a;
+      border: 1px solid #5a2020;
+      border-radius: 8px;
+      padding: 10px 16px;
+      margin-top: 16px;
+      max-width: 540px;
+      width: 100%;
+      font-size: 0.9rem;
+    }
+
+    #previewSection {
+      width: 100%;
+      max-width: 1100px;
+      margin-top: 36px;
+    }
+
+    .preview-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+
+    @media (max-width: 640px) {
+      .preview-grid { grid-template-columns: 1fr; }
+    }
+
+    .preview-card {
+      background: #16161e;
+      border-radius: 14px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .preview-card .label {
+      padding: 10px 16px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #666;
+      border-bottom: 1px solid #22222e;
+    }
+
+    .img-wrap {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 280px;
+      padding: 16px;
+    }
+
+    /* Checkerboard for transparency */
+    .img-wrap.checker {
+      background-color: #fff;
+      background-image:
+        linear-gradient(45deg, #ccc 25%, transparent 25%),
+        linear-gradient(-45deg, #ccc 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, #ccc 75%),
+        linear-gradient(-45deg, transparent 75%, #ccc 75%);
+      background-size: 20px 20px;
+      background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+    }
+
+    .img-wrap img {
+      max-width: 100%;
+      max-height: 400px;
+      object-fit: contain;
+      border-radius: 4px;
+      transition: opacity 0.3s;
+    }
+
+    #loadingOverlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(15,15,19,0.85);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+      border-radius: 14px;
+      backdrop-filter: blur(4px);
+    }
+
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid #3a3a50;
+      border-top-color: #7c6ff7;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    #progressText {
+      font-size: 0.85rem;
+      color: #aaa;
+      max-width: 240px;
+      text-align: center;
+      line-height: 1.4;
+    }
+
+    .actions {
+      display: flex;
+      gap: 12px;
+      margin-top: 20px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    button {
+      padding: 11px 24px;
+      border-radius: 10px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      border: none;
+      cursor: pointer;
+      transition: opacity 0.15s, transform 0.1s;
+    }
+
+    button:active { transform: scale(0.97); }
+
+    #downloadBtn {
+      background: #7c6ff7;
+      color: #fff;
+    }
+
+    #downloadBtn:disabled {
+      opacity: 0.35;
+      cursor: not-allowed;
+    }
+
+    #resetBtn {
+      background: #2a2a38;
+      color: #ccc;
+    }
+
+    #resetBtn:hover { background: #32323e; }
+
+    .badge {
+      display: inline-block;
+      background: #1e1e2e;
+      border: 1px solid #2e2e42;
+      border-radius: 6px;
+      padding: 3px 8px;
+      font-size: 0.72rem;
+      color: #666;
+      margin-top: 20px;
+    }
+  </style>
+</head>
+<body>
+  <h1>img<span>Cleaner</span></h1>
+  <p class="subtitle">Drop any image — background removed instantly, in your browser</p>
+
+  <label id="dropzone" for="fileInput">
+    <div class="icon">🖼️</div>
+    <p><strong>Drag & drop an image here</strong></p>
+    <p>or click to browse</p>
+    <small>PNG · JPEG · WebP · GIF · BMP — processed locally, never uploaded</small>
+  </label>
+
+  <input type="file" id="fileInput" accept="image/*" />
+
+  <p id="errorMsg" hidden></p>
+
+  <section id="previewSection" hidden>
+    <div class="preview-grid">
+      <div class="preview-card">
+        <div class="label">Original</div>
+        <div class="img-wrap">
+          <img id="originalImg" alt="Original" />
+        </div>
+      </div>
+      <div class="preview-card">
+        <div class="label">Background Removed</div>
+        <div class="img-wrap checker">
+          <img id="resultImg" alt="Result" style="opacity:0" />
+        </div>
+        <div id="loadingOverlay">
+          <div class="spinner"></div>
+          <p id="progressText">Loading AI model…</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button id="downloadBtn" disabled>Download PNG</button>
+      <button id="resetBtn">Try Another Image</button>
+    </div>
+  </section>
+
+  <span class="badge">Powered by @imgly/background-removal · ISNet model · runs 100% in your browser</span>
+
+  <script type="module" src="/main.js"></script>
+</body>
+</html>
