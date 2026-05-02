@@ -117,8 +117,19 @@
       padding: 16px;
     }
 
-    /* Checkerboard for transparency */
-    .img-wrap.checker {
+    .img-wrap img {
+      max-width: 100%;
+      max-height: 400px;
+      object-fit: contain;
+      border-radius: 4px;
+      transition: opacity 0.3s;
+    }
+
+    /* Checkerboard lives on the image itself so it only shows inside the image bounds */
+    #resultImg {
+      display: block;
+      width: 100%;
+      max-height: none;
       background-color: #fff;
       background-image:
         linear-gradient(45deg, #ccc 25%, transparent 25%),
@@ -129,12 +140,9 @@
       background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
     }
 
-    .img-wrap img {
-      max-width: 100%;
-      max-height: 400px;
-      object-fit: contain;
-      border-radius: 4px;
-      transition: opacity 0.3s;
+    .result-wrap {
+      padding: 0;
+      min-height: unset;
     }
 
     #loadingOverlay {
@@ -206,6 +214,39 @@
 
     #resetBtn:hover { background: #32323e; }
 
+    #modeSelector {
+      display: flex;
+      background: #16161e;
+      border: 1px solid #2e2e42;
+      border-radius: 10px;
+      padding: 4px;
+      gap: 4px;
+      margin-bottom: 28px;
+    }
+
+    .mode-btn {
+      background: transparent;
+      color: #888;
+      border-radius: 7px;
+      padding: 8px 20px;
+      font-size: 0.85rem;
+      font-weight: 500;
+      border: none;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+      white-space: nowrap;
+    }
+
+    .mode-btn:hover:not(.active) {
+      background: #1c1c2a;
+      color: #ccc;
+    }
+
+    .mode-btn.active {
+      background: #7c6ff7;
+      color: #fff;
+    }
+
     .badge {
       display: inline-block;
       background: #1e1e2e;
@@ -221,6 +262,12 @@
 <body>
   <h1>img<span>Cleaner</span></h1>
   <p class="subtitle">Drop any image — background removed instantly, in your browser</p>
+
+  <div id="modeSelector">
+    <button class="mode-btn active" data-mode="both">Remove BG + Crop</button>
+    <button class="mode-btn" data-mode="remove">Remove BG only</button>
+    <button class="mode-btn" data-mode="crop">Crop only</button>
+  </div>
 
   <label id="dropzone" for="fileInput">
     <div class="icon">🖼️</div>
@@ -242,8 +289,8 @@
         </div>
       </div>
       <div class="preview-card">
-        <div class="label">Background Removed</div>
-        <div class="img-wrap checker">
+        <div class="label" id="resultLabel">Background Removed</div>
+        <div class="img-wrap result-wrap">
           <img id="resultImg" alt="Result" style="opacity:0" />
         </div>
         <div id="loadingOverlay">

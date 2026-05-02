@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "WebSearch",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:www.npmjs.com)",
+      "WebFetch(domain:app.unpkg.com)",
+      "Bash(npm install *)",
+      "Bash(npm info *)",
+      "Bash(npm run *)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:5173)",
+      "Bash(curl -s -I http://localhost:5173)",
+      "Bash(node -e \"const m = require\\('./node_modules/@imgly/background-removal/dist/index.js'\\); console.log\\(Object.keys\\(m\\)\\)\")"
+    ]
+  }
+}

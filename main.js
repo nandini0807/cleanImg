@@ -12,6 +12,19 @@ const resetBtn = document.getElementById("resetBtn");
 const errorMsg = document.getElementById("errorMsg");
 
 let resultBlobUrl = null;
+let currentMode = "both";
+
+const resultLabel = document.getElementById("resultLabel");
+const modeLabels = { both: "Background Removed + Cropped", remove: "Background Removed", crop: "Cropped" };
+
+document.querySelectorAll(".mode-btn").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".mode-btn").forEach((b) => b.classList.remove("active"));
+    btn.classList.add("active");
+    currentMode = btn.dataset.mode;
+    resultLabel.textContent = modeLabels[currentMode];
+  });
+});
 
 function cropTransparent(blob) {
   return new Promise((resolve) => {
@@ -91,25 +104,36 @@ async function processImage(file) {
   previewSection.hidden = false;
   downloadBtn.disabled = true;
 
-  showLoading("Loading AI model… (first run downloads ~80 MB, cached after)");
+  const needsRemove = currentMode === "remove" || currentMode === "both";
+  const needsCrop   = currentMode === "crop"   || currentMode === "both";
+
+  showLoading(needsRemove
+    ? "Loading AI model… (first run downloads ~80 MB, cached after)"
+    : "Cropping transparent space…");
 
   try {
-    const blob = await removeBackground(file, {
-      model: "isnet_fp16",
-      output: { format: "image/png" },
-      progress: (key, current, total) => {
-        if (total > 0) {
-          const pct = Math.round((current / total) * 100);
-          progressText.textContent = `${key === "compute:inference" ? "Removing background" : "Downloading model"} — ${pct}%`;
-        }
-      },
-    });
+    let result = file;
 
-    progressText.textContent = "Cropping transparent space…";
-    const cropped = await cropTransparent(blob);
+    if (needsRemove) {
+      result = await removeBackground(file, {
+        model: "isnet_fp16",
+        output: { format: "image/png" },
+        progress: (key, current, total) => {
+          if (total > 0) {
+            const pct = Math.round((current / total) * 100);
+            progressText.textContent = `${key === "compute:inference" ? "Removing background" : "Downloading model"} — ${pct}%`;
+          }
+        },
+      });
+    }
+
+    if (needsCrop) {
+      progressText.textContent = "Cropping transparent space…";
+      result = await cropTransparent(result);
+    }
 
     if (resultBlobUrl) URL.revokeObjectURL(resultBlobUrl);
-    resultBlobUrl = URL.createObjectURL(cropped);
+    resultBlobUrl = URL.createObjectURL(result);
 
     resultImg.src = resultBlobUrl;
     await resultImg.decode();
@@ -117,9 +141,10 @@ async function processImage(file) {
     hideLoading();
     downloadBtn.disabled = false;
     downloadBtn.dataset.blobUrl = resultBlobUrl;
-    downloadBtn.dataset.filename = file.name.replace(/\.[^.]+$/, "") + "_nobg.png";
+    const suffix = currentMode === "crop" ? "_cropped" : "_nobg";
+    downloadBtn.dataset.filename = file.name.replace(/\.[^.]+$/, "") + suffix + ".png";
   } catch (err) {
-    showError("Background removal failed: " + (err.message || err));
+    showError("Processing failed: " + (err.message || err));
     console.error(err);
   }
 }
