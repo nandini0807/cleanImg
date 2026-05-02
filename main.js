@@ -10,9 +10,180 @@ const progressText = document.getElementById("progressText");
 const downloadBtn = document.getElementById("downloadBtn");
 const resetBtn = document.getElementById("resetBtn");
 const errorMsg = document.getElementById("errorMsg");
+const manualCropBtn = document.getElementById("manualCropBtn");
+const cropOverlay = document.getElementById("cropOverlay");
+const cropCanvas = document.getElementById("cropCanvas");
+const cropHint = document.getElementById("cropHint");
+const applyCropBtn = document.getElementById("applyCropBtn");
+const cancelCropBtn = document.getElementById("cancelCropBtn");
 
 let resultBlobUrl = null;
 let currentMode = "both";
+
+// ── Manual crop ──────────────────────────────────────────────────────────────
+let cropState = { active: false, start: null, current: null, dragging: false };
+
+function enterCropMode() {
+  const rect = resultImg.getBoundingClientRect();
+  cropCanvas.width = Math.round(rect.width);
+  cropCanvas.height = Math.round(rect.height);
+  cropState = { active: true, start: null, current: null, dragging: false };
+  cropHint.textContent = "Drag to select crop area";
+  cropOverlay.hidden = false;
+  drawCropCanvas();
+}
+
+function exitCropMode() {
+  cropOverlay.hidden = true;
+  cropState = { active: false, start: null, current: null, dragging: false };
+}
+
+function clamp(val, min, max) { return Math.max(min, Math.min(max, val)); }
+
+function getCanvasPos(e) {
+  const rect = cropCanvas.getBoundingClientRect();
+  const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+  const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+  return {
+    x: clamp(clientX - rect.left, 0, cropCanvas.width),
+    y: clamp(clientY - rect.top,  0, cropCanvas.height),
+  };
+}
+
+function drawCropCanvas() {
+  const ctx = cropCanvas.getContext("2d");
+  const W = cropCanvas.width, H = cropCanvas.height;
+  ctx.clearRect(0, 0, W, H);
+  ctx.fillStyle = "rgba(0,0,0,0.55)";
+  ctx.fillRect(0, 0, W, H);
+
+  const { start, current } = cropState;
+  if (!start || !current) return;
+
+  const x = Math.min(start.x, current.x);
+  const y = Math.min(start.y, current.y);
+  const w = Math.abs(current.x - start.x);
+  const h = Math.abs(current.y - start.y);
+  if (w < 2 || h < 2) return;
+
+  ctx.clearRect(x, y, w, h);
+
+  // Rule-of-thirds guides
+  ctx.strokeStyle = "rgba(255,255,255,0.2)";
+  ctx.lineWidth = 0.5;
+  for (let i = 1; i < 3; i++) {
+    ctx.beginPath(); ctx.moveTo(x + (w / 3) * i, y); ctx.lineTo(x + (w / 3) * i, y + h); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x, y + (h / 3) * i); ctx.lineTo(x + w, y + (h / 3) * i); ctx.stroke();
+  }
+
+  ctx.strokeStyle = "#7c6ff7";
+  ctx.lineWidth = 1.5;
+  ctx.strokeRect(x, y, w, h);
+
+  const hs = 7;
+  ctx.fillStyle = "#fff";
+  [[x, y], [x + w, y], [x, y + h], [x + w, y + h]].forEach(([cx, cy]) => {
+    ctx.fillRect(cx - hs / 2, cy - hs / 2, hs, hs);
+  });
+}
+
+cropCanvas.addEventListener("mousedown", (e) => {
+  e.preventDefault();
+  cropState.start = getCanvasPos(e);
+  cropState.current = { ...cropState.start };
+  cropState.dragging = true;
+  drawCropCanvas();
+});
+
+document.addEventListener("mousemove", (e) => {
+  if (!cropState.dragging) return;
+  cropState.current = getCanvasPos(e);
+  drawCropCanvas();
+});
+
+document.addEventListener("mouseup", () => {
+  if (!cropState.dragging) return;
+  cropState.dragging = false;
+  const w = cropState.current ? Math.abs(cropState.current.x - cropState.start.x) : 0;
+  const h = cropState.current ? Math.abs(cropState.current.y - cropState.start.y) : 0;
+  if (w > 5 && h > 5) {
+    cropHint.textContent = "Adjust selection or click Apply Crop";
+  } else {
+    cropState.start = null;
+    cropState.current = null;
+    cropHint.textContent = "Drag to select crop area";
+    drawCropCanvas();
+  }
+});
+
+cropCanvas.addEventListener("touchstart", (e) => {
+  e.preventDefault();
+  cropState.start = getCanvasPos(e);
+  cropState.current = { ...cropState.start };
+  cropState.dragging = true;
+  drawCropCanvas();
+}, { passive: false });
+
+cropCanvas.addEventListener("touchmove", (e) => {
+  e.preventDefault();
+  if (!cropState.dragging) return;
+  cropState.current = getCanvasPos(e);
+  drawCropCanvas();
+}, { passive: false });
+
+cropCanvas.addEventListener("touchend", (e) => {
+  e.preventDefault();
+  cropState.dragging = false;
+  const w = cropState.current ? Math.abs(cropState.current.x - cropState.start.x) : 0;
+  const h = cropState.current ? Math.abs(cropState.current.y - cropState.start.y) : 0;
+  if (!(w > 5 && h > 5)) {
+    cropState.start = null; cropState.current = null;
+    drawCropCanvas();
+  }
+  cropHint.textContent = w > 5 && h > 5 ? "Tap Apply Crop to confirm" : "Drag to select crop area";
+}, { passive: false });
+
+applyCropBtn.addEventListener("click", async () => {
+  const { start, current } = cropState;
+  if (!start || !current) return;
+
+  const x = Math.min(start.x, current.x);
+  const y = Math.min(start.y, current.y);
+  const w = Math.abs(current.x - start.x);
+  const h = Math.abs(current.y - start.y);
+  if (w < 5 || h < 5) return;
+
+  const scaleX = resultImg.naturalWidth  / cropCanvas.width;
+  const scaleY = resultImg.naturalHeight / cropCanvas.height;
+  const cropX = Math.round(x * scaleX);
+  const cropY = Math.round(y * scaleY);
+  const cropW = Math.round(w * scaleX);
+  const cropH = Math.round(h * scaleY);
+
+  const out = document.createElement("canvas");
+  out.width = cropW;
+  out.height = cropH;
+
+  const img = new Image();
+  img.src = resultBlobUrl;
+  await new Promise((resolve) => { img.onload = resolve; });
+  out.getContext("2d").drawImage(img, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
+
+  out.toBlob((blob) => {
+    if (!blob) return;
+    if (resultBlobUrl) URL.revokeObjectURL(resultBlobUrl);
+    resultBlobUrl = URL.createObjectURL(blob);
+    resultImg.src = resultBlobUrl;
+    resultImg.decode().then(() => {
+      downloadBtn.dataset.blobUrl = resultBlobUrl;
+      exitCropMode();
+    });
+  }, "image/png");
+});
+
+cancelCropBtn.addEventListener("click", exitCropMode);
+manualCropBtn.addEventListener("click", enterCropMode);
+// ─────────────────────────────────────────────────────────────────────────────
 
 const resultLabel = document.getElementById("resultLabel");
 const modeLabels = { both: "Background Removed + Cropped", remove: "Background Removed", crop: "Cropped" };
@@ -140,6 +311,7 @@ async function processImage(file) {
     resultImg.style.opacity = "1";
     hideLoading();
     downloadBtn.disabled = false;
+    manualCropBtn.disabled = false;
     downloadBtn.dataset.blobUrl = resultBlobUrl;
     const suffix = currentMode === "crop" ? "_cropped" : "_nobg";
     downloadBtn.dataset.filename = file.name.replace(/\.[^.]+$/, "") + suffix + ".png";
@@ -183,6 +355,8 @@ resetBtn.addEventListener("click", () => {
   originalImg.src = "";
   resultImg.src = "";
   downloadBtn.disabled = true;
+  manualCropBtn.disabled = true;
+  exitCropMode();
   clearError();
   if (resultBlobUrl) {
     URL.revokeObjectURL(resultBlobUrl);

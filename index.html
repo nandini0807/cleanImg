@@ -143,6 +143,75 @@
     .result-wrap {
       padding: 0;
       min-height: unset;
+      position: relative;
+    }
+
+    #cropOverlay {
+      position: absolute;
+      inset: 0;
+      z-index: 5;
+      cursor: crosshair;
+    }
+
+    #cropCanvas {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      display: block;
+      z-index: 1;
+    }
+
+    #cropToolbar {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 14px;
+      background: rgba(15, 15, 19, 0.88);
+      backdrop-filter: blur(4px);
+      gap: 10px;
+      z-index: 2;
+    }
+
+    #cropHint {
+      color: #999;
+      font-size: 0.8rem;
+    }
+
+    .crop-btn-group {
+      display: flex;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    #applyCropBtn {
+      background: #7c6ff7;
+      color: #fff;
+      padding: 6px 14px;
+      font-size: 0.82rem;
+    }
+
+    #cancelCropBtn {
+      background: #2a2a38;
+      color: #ccc;
+      padding: 6px 14px;
+      font-size: 0.82rem;
+    }
+
+    #manualCropBtn {
+      background: #2a2a38;
+      color: #ccc;
+    }
+
+    #manualCropBtn:hover:not(:disabled) { background: #32323e; }
+
+    #manualCropBtn:disabled {
+      opacity: 0.35;
+      cursor: not-allowed;
     }
 
     #loadingOverlay {
@@ -292,6 +361,16 @@
         <div class="label" id="resultLabel">Background Removed</div>
         <div class="img-wrap result-wrap">
           <img id="resultImg" alt="Result" style="opacity:0" />
+          <div id="cropOverlay" hidden>
+            <canvas id="cropCanvas"></canvas>
+            <div id="cropToolbar">
+              <span id="cropHint">Drag to select crop area</span>
+              <div class="crop-btn-group">
+                <button id="applyCropBtn">Apply Crop</button>
+                <button id="cancelCropBtn">Cancel</button>
+              </div>
+            </div>
+          </div>
         </div>
         <div id="loadingOverlay">
           <div class="spinner"></div>
@@ -302,6 +381,7 @@
 
     <div class="actions">
       <button id="downloadBtn" disabled>Download PNG</button>
+      <button id="manualCropBtn" disabled>Manual Crop</button>
       <button id="resetBtn">Try Another Image</button>
     </div>
   </section>
