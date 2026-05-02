@@ -18,7 +18,7 @@ const applyCropBtn = document.getElementById("applyCropBtn");
 const cancelCropBtn = document.getElementById("cancelCropBtn");
 
 let resultBlobUrl = null;
-let currentMode = "both";
+let currentMode = "sticker";
 
 // ── Manual crop ──────────────────────────────────────────────────────────────
 let cropState = { active: false, start: null, current: null, dragging: false };
@@ -186,7 +186,7 @@ manualCropBtn.addEventListener("click", enterCropMode);
 // ─────────────────────────────────────────────────────────────────────────────
 
 const resultLabel = document.getElementById("resultLabel");
-const modeLabels = { both: "Background Removed + Cropped", remove: "Background Removed", crop: "Cropped" };
+const modeLabels = { both: "Background Removed + Cropped", remove: "Background Removed", crop: "Cropped", sticker: "Sticker" };
 
 document.querySelectorAll(".mode-btn").forEach((btn) => {
   btn.addEventListener("click", () => {
@@ -239,6 +239,7 @@ function cropTransparent(blob) {
   });
 }
 
+
 function showError(msg) {
   errorMsg.textContent = msg;
   errorMsg.hidden = false;
@@ -275,8 +276,8 @@ async function processImage(file) {
   previewSection.hidden = false;
   downloadBtn.disabled = true;
 
-  const needsRemove = currentMode === "remove" || currentMode === "both";
-  const needsCrop   = currentMode === "crop"   || currentMode === "both";
+  const needsRemove = currentMode === "remove" || currentMode === "both" || currentMode === "sticker";
+  const needsCrop   = currentMode === "crop"   || currentMode === "both" || currentMode === "sticker";
 
   showLoading(needsRemove
     ? "Loading AI model… (first run downloads ~80 MB, cached after)"
@@ -313,7 +314,7 @@ async function processImage(file) {
     downloadBtn.disabled = false;
     manualCropBtn.disabled = false;
     downloadBtn.dataset.blobUrl = resultBlobUrl;
-    const suffix = currentMode === "crop" ? "_cropped" : "_nobg";
+    const suffix = currentMode === "crop" ? "_cropped" : currentMode === "sticker" ? "_sticker" : "_nobg";
     downloadBtn.dataset.filename = file.name.replace(/\.[^.]+$/, "") + suffix + ".png";
   } catch (err) {
     showError("Processing failed: " + (err.message || err));
